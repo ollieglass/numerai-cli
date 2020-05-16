@@ -409,6 +409,22 @@ def terraform_destroy(verbose):
     res.check_returncode()
 
 
+def terraform_show(verbose):
+    numerai_dir = get_project_numerai_dir()
+    if not path.exists(numerai_dir):
+        print("Can't show terraform state, no numerai dir")
+        return
+    numerai_dir = format_path_if_mingw(numerai_dir)
+
+    keys = load_or_setup_keys()
+
+    c = '''docker run -e "AWS_ACCESS_KEY_ID={keys.aws_public}" -e "AWS_SECRET_ACCESS_KEY={keys.aws_secret}" --rm -it -v {numerai_dir}:/opt/plan -w /opt/plan hashicorp/terraform:light show'''.format(
+        **locals())
+    if verbose:
+        click.echo('running: ' + keys.sanitize_message(c))
+    res = subprocess.run(c, shell=True)
+    res.check_returncode()
+
 @click.group()
 def cli():
     """This script allows you to setup Numer.ai compute node and deploy docker containers to it"""
@@ -439,6 +455,13 @@ def setup(verbose, cpu, memory):
 def destroy(verbose):
     """Destroys a previously setup Numer.ai compute node"""
     terraform_destroy(verbose)
+
+
+@click.command()
+@click.option('--verbose', '-v', is_flag=True)
+def show(verbose):
+    """Show terraform state"""
+    terraform_show(verbose)
 
 
 @click.group()
@@ -838,6 +861,7 @@ def main():
 
     cli.add_command(setup)
     cli.add_command(destroy)
+    cli.add_command(show)
 
     cli.add_command(docker)
     cli.add_command(compute)
